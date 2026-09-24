@@ -1,4 +1,4 @@
-package isop.np;
+package isop.np.mq.bridge;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class EventPublisher {
+
     public record SystemEvent(int id, String timestamp, String type, String details) {
     }
 

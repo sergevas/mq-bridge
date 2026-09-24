@@ -1,4 +1,4 @@
-package isop.np;
+package isop.np.mq.bridge;
 
 import io.avaje.jex.Jex;
 
@@ -26,7 +26,7 @@ public class EventRouting {
                     client.sendEvent("newEvent", htmlRow);
                 } catch (Exception e) {
                     // Если отправить не удалось (клиент ушел), принудительно убираем его
-                    System.out.println("Ошибка отправки, клиент будет удален.");
+                    IO.println("Ошибка отправки, клиент будет удален.");
                 }
             };
 
