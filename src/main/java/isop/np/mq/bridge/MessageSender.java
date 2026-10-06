@@ -27,11 +27,8 @@ public class MessageSender implements Consumer<TextMessage> {
 
     public void routeInboundMessage(TextMessage inboundMessage) {
         try {
-            TextMessage outboundMessage = session.createTextMessage();
-            JMSSupport.copyProperties(inboundMessage, outboundMessage);
-            outboundMessage.setText(inboundMessage.getText());
-            IO.println("Send message: %s".formatted(outboundMessage));
-            sender.send(outboundMessage);
+            IO.println("Route inbound message");
+            sender.send(inboundMessage);
         } catch (JMSException e) {
             System.err.printf("[MQ Error] Unable to route inbound message: %s".formatted(e));
             throw new RuntimeException("[MQ Error] Unable to route inbound message", e);
