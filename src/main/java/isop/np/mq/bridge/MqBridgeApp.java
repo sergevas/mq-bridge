@@ -4,18 +4,22 @@ import io.avaje.jex.Jex;
 
 public class MqBridgeApp {
 
-    public static final String QUEUE_NAME = "DEV.QUEUE.1";
-
     static void main() {
+        final var messageReceiver = new MessageReceiver();
+        final var messageSender = new MessageSender();
+        messageReceiver.registerListener(messageSender);
+        messageReceiver.startMQListener();
         // Создаем сервис и веб-компонент
-        var publisher = new EventPublisher();
-        var routing = new EventRouting(publisher);
+        var routing = new EventWebRouting(messageReceiver);
         // Создаем сервер Jex
         var app = Jex.create();
         // Передаем его для конфигурации путей
         routing.register(app);
         // Конфигурируем порт и запускаем
-        app.port(8080).start();
+        app.port(8080).start().onShutdown(() -> {
+            messageReceiver.cleanup();
+            messageSender.cleanup();
+        });
         IO.println("Application started at http://localhost:8080");
     }
 }

@@ -1,38 +1,110 @@
 package isop.np.mq.bridge;
 
 import javax.jms.*;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
-import static isop.np.mq.bridge.MqBridgeApp.QUEUE_NAME;
+import static isop.np.mq.bridge.JMSClosables.closeQuietly;
+import static isop.np.mq.bridge.JMSSupport.*;
 
-public class MessageReceiver {
+public class MessageReceiver implements MessageNotifier {
 
     private final QueueConnection connection;
     private final QueueSession session;
-    private final QueueReceiver receiver;
+    private final MessageConsumer messageConsumer;
 
-    public MessageReceiver() throws JMSException {
-        QueueConnectionFactory factory = new JMSSetup().createConnectionFactory();
-        connection = factory.createQueueConnection();
-        session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
-        Queue queue = session.createQueue(QUEUE_NAME);
-        receiver = session.createReceiver(queue);
-        connection.start();
+    private final Set<Consumer<TextMessage>> listeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    public MessageReceiver() {
+        try {
+            var factory = createReceiverConnectionFactory();
+            connection = factory.createQueueConnection();
+            session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+            Queue queue = session.createQueue(QUEUE_NAME);
+            messageConsumer = session.createConsumer(queue);
+            messageConsumer.setMessageListener(this::receiveMessage);
+        } catch (JMSException e) {
+            throw new RuntimeException("Unable to create message receiver", e);
+        }
     }
 
-    public void receiveMessage() {
-        try {
-            var message = receiver.receive(1000);
-            if (message instanceof TextMessage textMessage) {
-                IO.println("Inbound message received: [%s]".formatted(textMessage));
-            } else {
-                IO.println(("Skip processing inbound message of type [%s]").formatted(message.getClass()));
-            }
-        } catch (JMSException e) {
-            throw new RuntimeException("Unable to receive and process message", e);
-        } finally {
-            JMSClosables.close(receiver);
-            JMSClosables.close(session);
-            JMSClosables.close(connection);
+    public void registerListener(Consumer<TextMessage> listener) {
+        IO.println("Add listener %s".formatted(listener));
+        this.listeners.add(listener);
+    }
+
+    public void removeListener(Consumer<TextMessage> listener) {
+        IO.println("Remove listener %s".formatted(listener));
+        this.listeners.remove(listener);
+    }
+
+    public void receiveMessage(Message message) {
+//        try {
+//            var message = messageConsumer.receive(1000);
+        if (message instanceof TextMessage textMessage) {
+            IO.println("Inbound message received: [%s]".formatted(textMessage));
+//                TODO: implement
+            // Формируем событие для HTMX UI
+//                int id = idGenerator.getAndIncrement();
+//                String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+//                SystemEvent event = new SystemEvent(id, time, "JMS_MESSAGE", msgText);
+            broadcast(textMessage);
+        } else {
+            IO.println(("Skip processing inbound message of type [%s]").formatted(message.getClass()));
         }
+//        } catch (JMSException e) {
+//            throw new RuntimeException("Unable to receive and process message", e);
+//        } finally {
+//            closeQuietly(messageConsumer, session, connection);
+    }
+
+    public void startMQListener() {
+        // Создаем и запускаем виртуальный поток для бесконечного опроса MQ
+//        Thread.startVirtualThread(() -> {
+//            while (!Thread.currentThread().isInterrupted()) {
+        try {
+            IO.println("[MQ] Establish connection %s".formatted(connection));
+            connection.start();
+            IO.println("[MQ] Connected successfully. Waiting for inbound message...");
+            // 3. Внутренний бесконечный цикл получения сообщений
+//            while (!Thread.currentThread().isInterrupted()) {
+            // Опрашиваем очередь с таймаутом 1 секунда
+            // Виртуальный поток при этом эффективно паркуется, не занимая ядер процессора
+//                receiveMessage();
+//            }
+        } catch (JMSException e) {
+            IO.println("[MQ Error]: %s%n Reconnecting in %d sec...".formatted(e.getMessage(), RECONNECTION_PERIOD));
+            cleanup();
+            try {
+                // Пауза перед реконнектом, если Docker/MQ упал
+                Thread.sleep(RECONNECTION_PERIOD);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+//                }
+//            }
+            // Финальная очистка при остановке потока
+            cleanup();
+        }
+//        );
+    }
+
+    public void broadcast(TextMessage textMessage) {
+        listeners.forEach(listener -> {
+            try {
+                IO.println("Notify listener: %s".formatted(listener));
+                listener.accept(textMessage);
+            } catch (Exception e) {
+                System.err.printf("Error while broadcasting inbound message: %s", e);
+                listeners.remove(listener);
+            }
+        });
+    }
+
+    public void cleanup() {
+        IO.println("MessageReceiver cleanup...");
+        closeQuietly(messageConsumer, session, connection);
     }
 }

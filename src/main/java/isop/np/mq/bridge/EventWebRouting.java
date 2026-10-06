@@ -2,43 +2,68 @@ package isop.np.mq.bridge;
 
 import io.avaje.jex.Jex;
 
+import javax.jms.TextMessage;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-public class EventRouting {
-    private final EventPublisher eventPublisher;
+public class EventWebRouting {
 
-    public EventRouting(EventPublisher eventPublisher) {
-        this.eventPublisher = eventPublisher;
+    private final MessageNotifier messageNotifier;
+
+    public EventWebRouting(MessageNotifier messageNotifier) {
+        this.messageNotifier = messageNotifier;
     }
 
     public void register(Jex app) {
         // 1. Главная HTML страница
-        app.get("/", ctx -> {
-            ctx.html(renderIndexPage());
-        });
+        app.get("/", ctx -> ctx.html(renderIndexPage()));
 
         // 2. Server-Sent Events канал обновлений
         app.sse("/events-feed", client -> {
+            // Используем AtomicReference, чтобы лямбда имела ссылку на саму себя
+            final var sseBridgeRef = new AtomicReference<Consumer<TextMessage>>();
+
             // Создаем мост для трансляции
-            Consumer<EventPublisher.SystemEvent> sseBridge = event -> {
+            Consumer<TextMessage> sseBridge = textMessage -> {
                 try {
-                    String htmlRow = renderTableRow(event);
+                    var webEvent = WebEvent.toWebEvent(textMessage);
+                    IO.println("Created: %s".formatted(webEvent));
+                    String htmlRow = renderTableRow(webEvent);
                     client.sendEvent("newEvent", htmlRow);
                 } catch (Exception e) {
                     // Если отправить не удалось (клиент ушел), принудительно убираем его
-                    IO.println("Ошибка отправки, клиент будет удален.");
+                    System.err.printf("Unable to send SSE %s%n", e);
                 }
             };
-
-            // Регистрируем слушателя в сервисе
-            eventPublisher.registerListener(sseBridge);
-
             // Чистим за собой, если клиент инициировал закрытие
-            client.onClose(() -> eventPublisher.removeListener(sseBridge));
-
+//            client.onClose(() -> {
+//                messageNotifier.removeListener(sseBridge);
+//                IO.println("SSE Client successfully unregistered");
+//            });
+            // Регистрируем слушателя в сервисе
+            messageNotifier.registerListener(sseBridge);
+            if (client.terminated() || Thread.currentThread().isInterrupted()) {
+                Optional.ofNullable(sseBridgeRef.get()).ifPresent(messageNotifier::removeListener);
+            }
             // ВАЖНО ДЛЯ JEX: Блокируем виртуальный поток обработчика,
             // чтобы соединение оставалось открытым в ожидании событий!
             client.keepAlive();
+//            try {
+//                while (true) {
+//                    IO.println("Ping!");
+//                    client.sendComment("ping");
+//                    Thread.sleep(15000);
+//                }
+//            } catch (InterruptedException e) {
+//                Thread.currentThread().interrupt();
+//            } catch (Exception e) {
+//                // Сюда мы попадем, как только браузер разорвет соединение и sendComment упадет
+//                IO.println("Browser connection lost: " + e.getMessage());
+//            } finally {
+//                // На всякий случай дублируем очистку, если onClose не сработал автоматически
+//                messageNotifier.removeListener(sseBridge);
+//            }
         });
     }
 
@@ -50,7 +75,6 @@ public class EventRouting {
                     <meta charset="UTF-8">
                     <title>Event Stream</title>
                 
-                    <!-- ОСТАВЛЯЕМ ТОЛЬКО ЭТИ ДВА КОРРЕКТНЫХ СКРИПТА -->
                     <!-- 1. Базовый HTMX -->
                     <script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"></script>
                     <!-- 2. Официальное расширение SSE для HTMX 2.x -->
@@ -69,12 +93,11 @@ public class EventRouting {
                 <body>
                     <div class="container">
                         <h2>Real-time Application Events</h2>
-                
                         <!-- Активируем расширение SSE и подключаемся к потоку -->
                         <div hx-ext="sse" sse-connect="/events-feed">
                             <table>
                                 <thead>
-                                    <tr><th>ID</th><th>Time</th><th>Type</th><th>Details</th></tr>
+                                    <tr><th>JMSMessageID</th><th>JMSTimestamp</th><th>PayloadLength</th></tr>
                                 </thead>
                                 <!-- Слушаем событие newEvent и вставляем новые строки наверх -->
                                 <tbody id="events-table-body" sse-swap="newEvent" hx-swap="afterbegin">
@@ -87,14 +110,13 @@ public class EventRouting {
                 """;
     }
 
-    private String renderTableRow(EventPublisher.SystemEvent event) {
+    private String renderTableRow(WebEvent event) {
         return """
                 <tr>
+                    <td>%s</td>
+                    <td>%s</td>
                     <td>%d</td>
-                    <td>%s</td>
-                    <td><strong>%s</strong></td>
-                    <td>%s</td>
                 </tr>
-                """.formatted(event.id(), event.timestamp(), event.type(), event.details());
+                """.formatted(event.id(), event.timestamp(), event.payloadLength());
     }
 }
