@@ -10,7 +10,6 @@ import java.util.Enumeration;
 
 public class JMSSupport {
 
-    public static final long POLLING_PERIOD = 1000L;
     public static final long RECONNECTION_PERIOD = 5000L;
     public static final String QUEUE_NAME = "DEV.QUEUE.1";
 

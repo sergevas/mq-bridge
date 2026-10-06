@@ -3,8 +3,7 @@ package isop.np.mq.bridge;
 import io.avaje.jex.Jex;
 
 import javax.jms.TextMessage;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public class EventWebRouting {
@@ -21,49 +20,39 @@ public class EventWebRouting {
 
         // 2. Server-Sent Events канал обновлений
         app.sse("/events-feed", client -> {
-            // Используем AtomicReference, чтобы лямбда имела ссылку на саму себя
-            final var sseBridgeRef = new AtomicReference<Consumer<TextMessage>>();
-
-            // Создаем мост для трансляции
             Consumer<TextMessage> sseBridge = textMessage -> {
                 try {
                     var webEvent = WebEvent.toWebEvent(textMessage);
                     IO.println("Created: %s".formatted(webEvent));
-                    String htmlRow = renderTableRow(webEvent);
-                    client.sendEvent("newEvent", htmlRow);
+                    client.sendEvent("newEvent", renderTableRow(webEvent));
                 } catch (Exception e) {
-                    // Если отправить не удалось (клиент ушел), принудительно убираем его
                     System.err.printf("Unable to send SSE %s%n", e);
                 }
             };
-            // Чистим за собой, если клиент инициировал закрытие
-//            client.onClose(() -> {
-//                messageNotifier.removeListener(sseBridge);
-//                IO.println("SSE Client successfully unregistered");
-//            });
-            // Регистрируем слушателя в сервисе
+
+            final var unregistered = new AtomicBoolean(false);
+            Runnable unregister = () -> {
+                if (unregistered.compareAndSet(false, true)) {
+                    messageNotifier.removeListener(sseBridge);
+                    IO.println("SSE Client successfully unregistered");
+                }
+            };
+
+            client.onClose(unregister);
+
             messageNotifier.registerListener(sseBridge);
-            if (client.terminated() || Thread.currentThread().isInterrupted()) {
-                Optional.ofNullable(sseBridgeRef.get()).ifPresent(messageNotifier::removeListener);
+
+            // Heartbeat: при закрытии вкладки write упадёт → close() → onClose
+            try {
+                while (!client.terminated()) {
+                    client.sendComment("ping");
+                    Thread.sleep(5_000);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                unregister.run();
             }
-            // ВАЖНО ДЛЯ JEX: Блокируем виртуальный поток обработчика,
-            // чтобы соединение оставалось открытым в ожидании событий!
-            client.keepAlive();
-//            try {
-//                while (true) {
-//                    IO.println("Ping!");
-//                    client.sendComment("ping");
-//                    Thread.sleep(15000);
-//                }
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            } catch (Exception e) {
-//                // Сюда мы попадем, как только браузер разорвет соединение и sendComment упадет
-//                IO.println("Browser connection lost: " + e.getMessage());
-//            } finally {
-//                // На всякий случай дублируем очистку, если onClose не сработал автоматически
-//                messageNotifier.removeListener(sseBridge);
-//            }
         });
     }
 

@@ -41,39 +41,19 @@ public class MessageReceiver implements MessageNotifier {
     }
 
     public void receiveMessage(Message message) {
-//        try {
-//            var message = messageConsumer.receive(1000);
         if (message instanceof TextMessage textMessage) {
             IO.println("Inbound message received: [%s]".formatted(textMessage));
-//                TODO: implement
-            // Формируем событие для HTMX UI
-//                int id = idGenerator.getAndIncrement();
-//                String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-//                SystemEvent event = new SystemEvent(id, time, "JMS_MESSAGE", msgText);
             broadcast(textMessage);
         } else {
             IO.println(("Skip processing inbound message of type [%s]").formatted(message.getClass()));
         }
-//        } catch (JMSException e) {
-//            throw new RuntimeException("Unable to receive and process message", e);
-//        } finally {
-//            closeQuietly(messageConsumer, session, connection);
     }
 
     public void startMQListener() {
-        // Создаем и запускаем виртуальный поток для бесконечного опроса MQ
-//        Thread.startVirtualThread(() -> {
-//            while (!Thread.currentThread().isInterrupted()) {
         try {
             IO.println("[MQ] Establish connection %s".formatted(connection));
             connection.start();
             IO.println("[MQ] Connected successfully. Waiting for inbound message...");
-            // 3. Внутренний бесконечный цикл получения сообщений
-//            while (!Thread.currentThread().isInterrupted()) {
-            // Опрашиваем очередь с таймаутом 1 секунда
-            // Виртуальный поток при этом эффективно паркуется, не занимая ядер процессора
-//                receiveMessage();
-//            }
         } catch (JMSException e) {
             IO.println("[MQ Error]: %s%n Reconnecting in %d sec...".formatted(e.getMessage(), RECONNECTION_PERIOD));
             cleanup();
@@ -83,12 +63,8 @@ public class MessageReceiver implements MessageNotifier {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
-//                }
-//            }
-            // Финальная очистка при остановке потока
             cleanup();
         }
-//        );
     }
 
     public void broadcast(TextMessage textMessage) {
