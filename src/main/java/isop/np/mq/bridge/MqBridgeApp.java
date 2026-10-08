@@ -6,19 +6,6 @@ import static java.util.Optional.ofNullable;
 
 public class MqBridgeApp {
 
-    ///
-    /// # IBM MQ connection properties (in sequential order)
-    /// ## Message Receiver connection properties
-    /// - `rHost` - receiver hostname default: `localhost`
-    /// - `rPort` - receiver port default: `1415`
-    /// - `rMqm` - receiver Queue Manager name default: `QM2`
-    /// - `rMqm` - receiver Server Channel name default: `DEV.APP.SVRCONN`
-    /// ## Message Sender connection properties
-    /// - `sHost` - sender hostname default: `localhost`
-    /// - `sPort` - sender port default: `1414`
-    /// - `sMqm` - sender Queue Manager name default: `QM1`
-    /// - `sMqm` - sender Server Channel name default: `DEV.APP.SVRCONN`
-    ///
     static void main(String[] args) {
         var defReceiverConnProps = new MQConnectionProperties("localhost", 1415, "QM2", "DEV.APP.SVRCONN");
         var defSenderConnProps = new MQConnectionProperties("localhost", 1414, "QM1", "DEV.APP.SVRCONN");

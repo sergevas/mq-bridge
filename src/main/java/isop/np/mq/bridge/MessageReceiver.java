@@ -22,7 +22,7 @@ public class MessageReceiver implements MessageNotifier {
             var factory = createConnectionFactory(properties);
             connection = factory.createQueueConnection();
             session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
-            Queue queue = session.createQueue(QUEUE_NAME);
+            Queue queue = session.createQueue(queueName());
             messageConsumer = session.createConsumer(queue);
             messageConsumer.setMessageListener(this::receiveMessage);
         } catch (JMSException e) {

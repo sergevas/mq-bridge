@@ -4,7 +4,7 @@ import javax.jms.*;
 import java.util.function.Consumer;
 
 import static isop.np.mq.bridge.JMSClosables.closeQuietly;
-import static isop.np.mq.bridge.JMSSupport.QUEUE_NAME;
+import static isop.np.mq.bridge.JMSSupport.queueName;
 
 public class MessageSender implements Consumer<TextMessage> {
 
@@ -17,7 +17,7 @@ public class MessageSender implements Consumer<TextMessage> {
             QueueConnectionFactory factory = JMSSupport.createConnectionFactory(connectionProperties);
             connection = factory.createQueueConnection();
             session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
-            Queue queue = session.createQueue(QUEUE_NAME);
+            Queue queue = session.createQueue(queueName());
             sender = session.createSender(queue);
             connection.start();
         } catch (JMSException e) {
