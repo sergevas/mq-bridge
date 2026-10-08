@@ -12,9 +12,9 @@ public class MessageSender implements Consumer<TextMessage> {
     private final QueueSession session;
     private final QueueSender sender;
 
-    public MessageSender() {
+    public MessageSender(MQConnectionProperties connectionProperties) {
         try {
-            QueueConnectionFactory factory = JMSSupport.createSenderConnectionFactory();
+            QueueConnectionFactory factory = JMSSupport.createConnectionFactory(connectionProperties);
             connection = factory.createQueueConnection();
             session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
             Queue queue = session.createQueue(QUEUE_NAME);

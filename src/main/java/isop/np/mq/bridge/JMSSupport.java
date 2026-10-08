@@ -13,14 +13,6 @@ public class JMSSupport {
     public static final long RECONNECTION_PERIOD = 5000L;
     public static final String QUEUE_NAME = "DEV.QUEUE.1";
 
-    public static QueueConnectionFactory createSenderConnectionFactory() throws JMSException {
-        return createConnectionFactory(new MQConnectionProperties("localhost", 1414, "QM1", "DEV.APP.SVRCONN"));
-    }
-
-    public static QueueConnectionFactory createReceiverConnectionFactory() throws JMSException {
-        return createConnectionFactory(new MQConnectionProperties("localhost", 1415, "QM2", "DEV.APP.SVRCONN"));
-    }
-
     public static QueueConnectionFactory createConnectionFactory(MQConnectionProperties properties) throws JMSException {
         MQQueueConnectionFactory factory = new MQQueueConnectionFactory();
         factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
