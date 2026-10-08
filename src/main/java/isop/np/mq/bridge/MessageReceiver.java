@@ -17,9 +17,9 @@ public class MessageReceiver implements MessageNotifier {
 
     private final Set<Consumer<TextMessage>> listeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    public MessageReceiver(MQConnectionProperties properties) {
+    public MessageReceiver() {
         try {
-            var factory = createConnectionFactory(properties);
+            var factory = createReceiverConnectionFactory();
             connection = factory.createQueueConnection();
             session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
             Queue queue = session.createQueue(queueName());

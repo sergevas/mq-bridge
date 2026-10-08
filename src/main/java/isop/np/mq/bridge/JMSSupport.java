@@ -34,18 +34,18 @@ public class JMSSupport {
 
     public static QueueConnectionFactory createSenderConnectionFactory() throws JMSException {
         return createConnectionFactory(new MQConnectionProperties(
-                getProperty("rHost", "localhost"),
-                Integer.parseInt(getProperty("rPort", "1415")),
-                getProperty("rMqm", "QM2"),
-                getProperty("rCh", "DEV.APP.SVRCONN")));
-    }
-
-    public static QueueConnectionFactory createReceiverConnectionFactory() throws JMSException {
-        return createConnectionFactory(new MQConnectionProperties(
                 getProperty("sHost", "localhost"),
                 Integer.parseInt(getProperty("sPort", "1414")),
                 getProperty("sMqm", "QM1"),
                 getProperty("sCh", "DEV.APP.SVRCONN")));
+    }
+
+    public static QueueConnectionFactory createReceiverConnectionFactory() throws JMSException {
+        return createConnectionFactory(new MQConnectionProperties(
+                getProperty("rHost", "localhost"),
+                Integer.parseInt(getProperty("rPort", "1415")),
+                getProperty("rMqm", "QM2"),
+                getProperty("rCh", "DEV.APP.SVRCONN")));
     }
 
     public static QueueConnectionFactory createConnectionFactory(MQConnectionProperties properties) throws JMSException {
